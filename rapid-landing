@@ -55,6 +55,8 @@ declare function calculate_burn {
 		if (PRINT_OUTPUT = 0) { print "Start burn in (s): " + TIME_TO_BURN. }
 		set BURN_ALTITUDE to (SHIP:VERTICALSPEED * -1 * BURN_TIME).
 		if (PRINT_OUTPUT = 0) { print "Burn Altitude (m): " + BURN_ALTITUDE. }
+		set COMPASS to 360 - SHIP:BEARING.
+		if (PRINT_OUTPUT = 0) { print "Bearing: " + COMPASS. }
 		if (PRINT_OUTPUT = 0) { print "". }
 	}
 }
@@ -68,6 +70,7 @@ panels off.
 
 
 set TARGET_THROTTLE to 1.0.
+set ANGLE to 45.
 set BURN_TIME to -1.
 set TIME_TO_BURN to -1.
 
@@ -96,18 +99,42 @@ until run_mode = 10 {
 		
 		lock throttle to 0.0.
 		calculate_burn.
-		if (TIME_TO_IMPACT < BURN_TIME) {
+		if (TIME_TO_IMPACT <= BURN_TIME) {
 			set run_mode to 4.
 		}
 	}
 
-	// Run Mode 4: Commence Rapid Burn.
+	// Run Mode 4: Decceleration Burns.
 	if run_mode = 4 {
+
 		if (calculate_dver = 0) {
+
+			if (TIME_TO_IMPACT > BURN_TIME) {
+				set TARGET_THROTTLE to TARGET_THROTTLE - 0.05.
+			}
+
+			// Calculate angle for burn
+			print "G: " + SHIP:GROUNDSPEED + " V:" + (-1 * SHIP:VERTICALSPEED).
+			if (SHIP:GROUNDSPEED > (-1 * SHIP:VERTICALSPEED)) {
+				set ANGLE to (ANGLE - 1).
+			} else {
+				set ANGLE to (ANGLE + 1).
+			}
+
+			if (ANGLE > 90) {
+				set ANGLE to 90.
+			}
+			if (ANGLE < 0) {
+				set ANGLE to 0.
+			}
+			lock STEERING to HEADING(COMPASS, ANGLE).
+
 			set run_mode to 3.
-		} else if (ALT:RADAR < 1000) {
-			set run_mode to 15.
+
 		}
+		// else if (ALT:RADAR < 1000) {
+		//	set run_mode to 15.
+		//}
 	}
 
 	if run_mode = 15 {
@@ -121,7 +148,6 @@ until run_mode = 10 {
 	}
 
 	if run_mode = 6 {
-		//print "ALL STOP".
 		LOCK STEERING TO UP.
 		lock THROTTLE to 0.0.
 		set SHIP:CONTROL:PILOTMAINTHROTTLE to 0.
@@ -129,9 +155,3 @@ until run_mode = 10 {
 		rcs off.
 	}
 }
-
-//LIST ENGINES IN all_engines.
-		//FOR eng IN all_engines {
-		//	print "Enging activate " + eng.
-		//	eng:activate.
-		//}.
