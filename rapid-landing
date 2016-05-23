@@ -16,24 +16,48 @@ declare function timer_wait {
 }.
 
 // Calculate the current change in vertical delta
+// Param: Duration of the burn in seconds, default is 1.
 // Returns 0 when DVER is calculated, otherwise 1 to indicate waiting.
 set DVER to -1.
 set PREVIOUS_DVER to -1.
 declare function calculate_dver {
+	declare parameter BURN_TIME is 1.
 	if (PREVIOUS_DVER = -1) {
 		set PREVIOUS_DVER to SHIP:VERTICALSPEED.
-		lock throttle to 1.0.
+		lock throttle to TARGET_THROTTLE.
 	}
 
-	if (timer_wait(1) = 0) {
+	if (timer_wait(BURN_TIME) = 0) {
+
 		lock throttle to 0.0.
-		set DVER to PREVIOUS_DVER - SHIP:VERTICALSPEED.
+		set DVER to (PREVIOUS_DVER - SHIP:VERTICALSPEED) / BURN_TIME.
 		set PREVIOUS_DVER to -1.
-		print "Vertical Delta: " + DVER.
+
+		calculate_burn(0).
+
 		return 0.
 	}
 	return 1.
 }.
+
+// Calculate and print a number of statistics around the landing predictions.
+// Param: 0 to print output, 1 to not print.
+declare function calculate_burn {
+	declare parameter PRINT_OUTPUT is 1.
+	// Calcualte the following each iteration
+	set TIME_TO_IMPACT to (ALT:RADAR / (SHIP:VERTICALSPEED * -1)).
+	if (PRINT_OUTPUT = 0) { print "Impact (s): " + TIME_TO_IMPACT. }
+	if NOT (DVER = -1) {
+		if (PRINT_OUTPUT = 0) { print "dVer (ms/s): " + DVER. }
+		set BURN_TIME to (SHIP:VERTICALSPEED / DVER).
+		if (PRINT_OUTPUT = 0) { print "Estimated Burn (s): " + BURN_TIME. }
+		set TIME_TO_BURN to TIME_TO_IMPACT - BURN_TIME.
+		if (PRINT_OUTPUT = 0) { print "Start burn in (s): " + TIME_TO_BURN. }
+		set BURN_ALTITUDE to (SHIP:VERTICALSPEED * -1 * BURN_TIME).
+		if (PRINT_OUTPUT = 0) { print "Burn Altitude (m): " + BURN_ALTITUDE. }
+		if (PRINT_OUTPUT = 0) { print "". }
+	}
+}
 
 // Pre landing state
 gear on.
@@ -51,13 +75,6 @@ set run_mode to 0.
 
 until run_mode = 10 {
 
-	// Calcualte the following each iteration
-	set TIME_TO_IMPACT to (ALT:RADAR / (SHIP:VERTICALSPEED * -1)).
-	if not (DVER = -1) {
-		set BURN_TIME to (SHIP:VERTICALSPEED / DVER).
-		set TIME_TO_BURN to TIME_TO_IMPACT - BURN_TIME.
-	}
-
 	// Run Mode 0: Prepare to calculate
 	if run_mode = 0 {
 		LOCK STEERING TO SHIP:RETROGRADE.
@@ -70,8 +87,6 @@ until run_mode = 10 {
 	// Run Mode 1: Calculate dVer (the change in vertical velocity)
 	if run_mode = 1 {
 		if (calculate_dver() = 0) {
-			print "Burn Time: " + BURN_TIME.
-			print "Time to Burn: " + TIME_TO_BURN.
 			set run_mode to 3.
 		}
 	}
@@ -80,7 +95,7 @@ until run_mode = 10 {
 	if run_mode = 3 {
 		
 		lock throttle to 0.0.
-		
+		calculate_burn.
 		if (TIME_TO_IMPACT < BURN_TIME) {
 			set run_mode to 4.
 		}
@@ -88,93 +103,21 @@ until run_mode = 10 {
 
 	// Run Mode 4: Commence Rapid Burn.
 	if run_mode = 4 {
-		
-		//if (SHIP:GROUNDSPEED > 1) {
-		//	LOCK STEERING TO SHIP:RETROGRADE.
-		//} else {
-		//	LOCK STEERING TO UP.
-		//	set run_mode to 5.
-		//}
-
 		if (calculate_dver = 0) {
 			set run_mode to 3.
-		} else if (ALT:RADAR < 400) {
-			set run_mode to 5.
+		} else if (ALT:RADAR < 1000) {
+			set run_mode to 15.
 		}
-
-
-
-		
-		//if (TIMER = -1) {
-		//	set PREVIOUS_DVER to SHIP:VERTICALSPEED.
-		//	set TIMER to MISSIONTIME.
-		//} else {
-		//	lock throttle to TARGET_THROTTLE.
-		//	set DELTA_TIME to (MISSIONTIME - TIMER).
-		//	if (DELTA_TIME > 1) {
-		//		set DVER to PREVIOUS_DVER - SHIP:VERTICALSPEED.
-		//		set BURN_TIME to (SHIP:VERTICALSPEED / DVER).
-		//		set TIME_TO_IMPACT to (ALT:RADAR / (SHIP:VERTICALSPEED * -1)).
-		//
-		//		if (TIME_TO_IMPACT > BURN_TIME) {
-		//			set TARGET_THROTTLE to (TARGET_THROTTLE - 0.05).
-		//		}
-		//		set TIMER to -1.
-		//	}
-		//}
-
-		//if (ALT:RADAR < 200) {
-		//	set run_mode to 5.
-		//}
 	}
 
-	// Run Mode 5: Final stabilised burn to touchdown
-	if run_mode = 5 {
-
-		LOCK STEERING TO UP.
-
-		set SOFT_SPEED to -5.
-		if (ALT:RADAR < 5) {
-			set SOFT_SPEED to ALT:RADAR * -1.
+	if run_mode = 15 {
+		if (calculate_dver = 0) {
+			if (TIME_TO_IMPACT > BURN_TIME) {
+				set TARGET_THROTTLE to TARGET_THROTTLE / 2.
+			} else if (ALT:RADAR < 5) {
+				set run_mode to 6.
+			}
 		}
-
-		print "R: " + ALT:RADAR + "V: " + (SHIP:VERTICALSPEED * -1).
-		if (SHIP:VERTICALSPEED < SOFT_SPEED) {
-			set TARGET_THROTTLE to (TARGET_THROTTLE + 0.01).
-		} else {
-			set TARGET_THROTTLE to (TARGET_THROTTLE - 0.01).
-		}
-
-		set HARD_THROTTLE to ALT:RADAR / 1000.
-		print "R: " + ALT:RADAR + "V: " + (SHIP:VERTICALSPEED * -1) + "H: " + HARD_THROTTLE + " T: " + TARGET_THROTTLE.
-		if (TARGET_THROTTLE > HARD_THROTTLE) {
-			set TARGET_THROTTLE to HARD_THROTTLE.
-		}
-
-		lock throttle to TARGET_THROTTLE.
-		
-		//LOCK STEERING TO UP.
-
-		//print "V: " + SHIP:VERTICALSPEED + " TT: " + TARGET_THROTTLE.
-
-		//set SOFT_SPEED to -5.
-		//if (ALT:RADAR < 5) {
-		//	set SOFT_SPEED to ALT:RADAR * -1.
-		//}
-
-		//if (SHIP:VERTICALSPEED < SOFT_SPEED) {
-		//	set TARGET_THROTTLE to (TARGET_THROTTLE + 0.01).
-		//} else if (SHIP:VERTICALSPEED > SOFT_SPEED) {
-		//	set TARGET_THROTTLE to (TARGET_THROTTLE - 0.01).
-		//}
-
-		//if (TARGET_THROTTLE > 0.1) {
-		//	set TARGET_THROTTLE to 0.1.
-		//}
-
-		//if (ALT:RADAR < 2) {
-		//	set run_mode to 6.
-		//}
 	}
 
 	if run_mode = 6 {
