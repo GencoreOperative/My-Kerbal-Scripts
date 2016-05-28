@@ -1,3 +1,12 @@
+//TODO:
+//The landing depends on timed bursts to slow the craft down.
+//The calculation used for this burn is based on a constant delta in vertical speed.
+//This is obviously wrong and is made aparant in the final burn which leaves the craft still too high
+//above the surface.
+//Instead, this should be a switched to a continuous burn calculation, with the thrust lowered as we descent.
+//Also consider - halting horizontal velocity will improve accuracy as the terrain height will be unchanging then.
+
+
 set SHIP:CONTROL:PILOTMAINTHROTTLE to 0.
 lock throttle to 0.0.
 
@@ -17,14 +26,15 @@ declare function timer_wait {
 
 // Calculate the current change in vertical delta
 // Param: Duration of the burn in seconds, default is 1.
+// Param: Throttle of the burn between 1.0 and 0.0, default is 1.0.
 // Returns 0 when DVER is calculated, otherwise 1 to indicate waiting.
 set DVER to -1.
 set PREVIOUS_DVER to -1.
 declare function calculate_dver {
-	declare parameter BURN_TIME is 1.
+	declare parameter BURN_TIME is 1, BURN_THROTTLE is 1.0.
 	if (PREVIOUS_DVER = -1) {
 		set PREVIOUS_DVER to SHIP:VERTICALSPEED.
-		lock throttle to TARGET_THROTTLE.
+		lock throttle to BURN_THROTTLE.
 	}
 
 	if (timer_wait(BURN_TIME) = 0) {
@@ -107,32 +117,27 @@ until run_mode = 10 {
 	// Run Mode 4: Decceleration Burns.
 	if run_mode = 4 {
 
-		if (calculate_dver = 0) {
-
+		if (calculate_dver(1, TARGET_THROTTLE) = 0) {
 			if (TIME_TO_IMPACT > BURN_TIME) {
 				set TARGET_THROTTLE to TARGET_THROTTLE - 0.05.
 			}
 
-			// Calculate angle for burn
-			print "G: " + SHIP:GROUNDSPEED + " V:" + (-1 * SHIP:VERTICALSPEED).
-			if (SHIP:GROUNDSPEED > (-1 * SHIP:VERTICALSPEED)) {
-				set ANGLE to (ANGLE - 1).
+			print "G: " + SHIP:GROUNDSPEED + " V: " + (-1 * SHIP:VERTICALSPEED).
+			if (SHIP:GROUNDSPEED > 50) {
+				set ANGLE to 45.
+			} else if (SHIP:GROUNDSPEED > 10) {
+				set ANGLE to 67.
 			} else {
-				set ANGLE to (ANGLE + 1).
-			}
-
-			if (ANGLE > 90) {
 				set ANGLE to 90.
 			}
-			if (ANGLE < 0) {
-				set ANGLE to 0.
-			}
 			lock STEERING to HEADING(COMPASS, ANGLE).
-
-			set run_mode to 3.
-
 		}
-		// else if (ALT:RADAR < 1000) {
+
+
+		if (ALT:RADAR < 10) {
+			set run_mode to 6.
+		}
+		//if (ALT:RADAR < 1000) {
 		//	set run_mode to 15.
 		//}
 	}
