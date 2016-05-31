@@ -1,11 +1,9 @@
-//TODO:
-//The landing depends on timed bursts to slow the craft down.
-//The calculation used for this burn is based on a constant delta in vertical speed.
-//This is obviously wrong and is made aparant in the final burn which leaves the craft still too high
-//above the surface.
-//Instead, this should be a switched to a continuous burn calculation, with the thrust lowered as we descent.
-//Also consider - halting horizontal velocity will improve accuracy as the terrain height will be unchanging then.
+// TODO
 
+// Reading other landing scripts we discover:
+// SRFRETROGRADE - Surface Retrograde Vector which elimiates the need for horizontal calculcations.
+// Locked variables - we can lock a variable to the result of a calculation which allows us to simplify processing logic
+// TIME:SECONDS - Will provide game world time in fractional seconds allowing sub 1-second processing loops as required
 
 set SHIP:CONTROL:PILOTMAINTHROTTLE to 0.
 lock throttle to 0.0.
