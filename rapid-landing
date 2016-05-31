@@ -134,8 +134,8 @@ until run_mode = 10 {
 		}
 
 
-		if (ALT:RADAR < 10) {
-			set run_mode to 6.
+		if (ALT:RADAR < 300) {
+			set run_mode to 15.
 		}
 		//if (ALT:RADAR < 1000) {
 		//	set run_mode to 15.
@@ -143,11 +143,27 @@ until run_mode = 10 {
 	}
 
 	if run_mode = 15 {
-		if (calculate_dver = 0) {
-			if (TIME_TO_IMPACT > BURN_TIME) {
-				set TARGET_THROTTLE to TARGET_THROTTLE / 2.
-			} else if (ALT:RADAR < 5) {
-				set run_mode to 6.
+		if (SHIP:VERTICALSPEED < -10) {
+			set TARGET_THROTTLE to TARGET_THROTTLE + 0.01.
+			print "Increment " + TARGET_THROTTLE.
+		} else if (SHIP:VERTICALSPEED > -8) {
+			set TARGET_THROTTLE to TARGET_THROTTLE - 0.01.
+			print "Decrement " + TARGET_THROTTLE.
+		}
+		lock throttle to TARGET_THROTTLE.
+		print "Radar: " + ALT:RADAR.
+		if (ALT:RADAR < 5) {
+			set run_mode to 16.
+		}
+	}
+
+	if run_mode = 16 {
+		lock throttle to 0.0.
+		if (timer_wait(1) = 0) {
+			if (SHIP:VERTICALSPEED < 1) {
+				if (SHIP:VERTICALSPEED > -1) {
+					set run_mode to 6.
+				}
 			}
 		}
 	}
