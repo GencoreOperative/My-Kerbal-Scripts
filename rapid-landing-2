@@ -96,13 +96,13 @@ set throttle_mod to 0.01.
 until alt:radar < 7 {
 	print "Final stage".
 	lock steering to up.
-	if (ship:verticalspeed < -5) {
+	if (ship:verticalspeed < -3) {
 		set current_throttle to current_throttle + throttle_mod.
 	} else {
 		set current_throttle to current_throttle - throttle_mod.
 	}
 	lock throttle to current_throttle.
-	wait 1.
+	wait 0.5.
 }
 
 lock throttle to 0.0.
