@@ -1,0 +1,110 @@
+// Determine if we are descending.
+// Return: true if the craft is currently descending.
+declare function descending {
+	set current_altitude to alt:radar.
+	wait 1.
+	return alt:radar < current_altitude.
+}.
+
+wait until descending().
+
+// Prepare for landing with the following.
+gear on.
+lights on.
+rcs on.
+sas off.
+panels off.
+
+// Wait 10 for alignment with surface retrograde.
+lock steering to srfretrograde.
+wait 10.
+
+// Prepare for descent with the following variables
+// Time to Impact: How long until we hit the floor.
+lock time_to_impact to (alt:radar / (ship:verticalspeed * -1)).
+// Landing Speed: Current descent velocity.
+lock landing_speed to SQRT((ship:verticalspeed*ship:verticalspeed) + (ship:groundspeed*ship:groundspeed)).
+
+// Calculate the dver (Velocity Delta) whilst burning
+// the engines. This tells us how much velocity we 
+// change by when the engines are burning.
+declare function calculate_dver {
+	set current_vel to landing_speed.
+	wait 1.
+	set DVER to (current_vel - landing_speed).
+}.
+
+// Now calculate the maximum possible dver. Most of 
+// the landing will be performed at less than this
+// value because the craft will get lighter as it
+// uses fuel.
+lock throttle to 1.0.
+calculate_dver().
+set MAX_DVER to DVER.
+lock throttle to 0.0.
+
+// Minimum Burn Time: This is the smallest duration
+// burn which would reduce our current velocity 
+// down to zero using the maximum dver.
+lock minimum_burn_time to landing_speed / (MAX_DVER).
+// Current Burn Time: This is the current duration
+// required using the current throttle level burn to
+// reduce the current velocity down to zero.
+lock burn_time to landing_speed / (DVER).
+// Time to Burn: The amount of time in seconds until
+// the vessel needs to start its descent burn.
+lock time_to_burn to time_to_impact - minimum_burn_time.
+
+until time_to_burn <= 0 {
+	print "Time to descent burn: " + time_to_burn.
+	wait 1.
+}
+
+set current_throttle to 1.0.
+set throttle_mod to 0.05.
+
+// Main descent stage
+until alt:radar < 50 or landing_speed < 1 {
+	print "bt: " + burn_time + " tti: " + time_to_impact.
+	print "dver: " + DVER.
+	print "ls: " + landing_speed + " alt: " + alt:radar.
+	print "".
+
+	lock throttle to current_throttle.
+	calculate_dver().
+	if (burn_time < 0) {
+		print "case 1".
+		set current_throttle to current_throttle + throttle_mod.
+	} else if (burn_time > time_to_impact) {
+		print "case 2".
+		set current_throttle to current_throttle + throttle_mod.
+	} else if (burn_time < time_to_impact) {
+		print "case 3".
+		set current_throttle to current_throttle - throttle_mod.
+	}
+
+	if (alt:radar < 200) {
+		print "fine mode".
+		set throttle_mod to 0.01.
+		lock steering to up.
+	}
+}
+
+// Final stage of descent, a slow drop down to 
+// the ground.
+set throttle_mod to 0.01.
+until alt:radar < 7 {
+	print "Final stage".
+	lock steering to up.
+	if (ship:verticalspeed < -5) {
+		set current_throttle to current_throttle + throttle_mod.
+	} else {
+		set current_throttle to current_throttle - throttle_mod.
+	}
+	lock throttle to current_throttle.
+	wait 1.
+}
+
+lock throttle to 0.0.
+rcs off.
+panels on.
