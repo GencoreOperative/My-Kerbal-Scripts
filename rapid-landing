@@ -88,7 +88,7 @@ until run_mode = 10 {
 
 	// Run Mode 0: Prepare to calculate
 	if run_mode = 0 {
-		LOCK STEERING TO SHIP:RETROGRADE.
+		LOCK STEERING TO SHIP:srfretrograde.
 
 		if (timer_wait(10) = 0) {
 			set run_mode to 1.
