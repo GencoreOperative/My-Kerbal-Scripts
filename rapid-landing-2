@@ -93,7 +93,7 @@ until alt:radar < 50 or landing_speed < 1 {
 // Final stage of descent, a slow drop down to 
 // the ground.
 set throttle_mod to 0.01.
-until alt:radar < 7 {
+until alt:radar < 7 and ship:verticalspeed < 1 {
 	print "Final stage".
 	lock steering to up.
 	if (ship:verticalspeed < -3) {
@@ -105,6 +105,7 @@ until alt:radar < 7 {
 	wait 0.5.
 }
 
+lock steering to up.
 lock throttle to 0.0.
 rcs off.
 panels on.
