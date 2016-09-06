@@ -73,7 +73,7 @@ until run_mode = 10 {
 		lock throttle to 1.0.
 
 		print "AP: " + SHIP:APOAPSIS + " PE: " + SHIP:PERIAPSIS.
-		if SHIP:APOAPSIS - 1000 < SHIP:PERIAPSIS {
+		if target_altitude - 1000 < SHIP:PERIAPSIS {
 			set run_mode to 6.
 		}
 	}
@@ -83,6 +83,16 @@ until run_mode = 10 {
 		lock throttle to 0.0.
 		sas on.
 		set run_mode to 10.
+	}
+
+	if run_mode = 10 {
+		// Insert actions here
+		list parts in all_parts.
+		for p in all_parts {
+			if (p:tag = "antenna") {
+				p:getmodule("ModuleRTAntenna"):DOEVENT("Activate").
+			}
+		}
 	}
 
 	// Repeating Staging Logic
