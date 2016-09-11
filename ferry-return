@@ -1,0 +1,51 @@
+// Point retrograde
+lights off.
+panels off.
+rcs on.
+sas off.
+lock steering to srfretrograde.
+
+// Checks for engine flameout.
+declare function should_stage {
+	list engines in englist.
+	for eng in englist {
+	  	if eng:flameout {
+	    	return true.
+		}
+	}
+	return false.
+}.
+
+// Antennas away
+list parts in all_parts.
+for p in all_parts {
+	if (p:tag = "antenna") {
+		set pModule to p:getmodule("ModuleRTAntenna").
+		if (pModule:HASEVENT("Deactivate")) {
+			pModule:DOEVENT("Deactivate").
+		}
+	}
+}
+
+// Burn engine
+lock throttle to 1.0.
+if (MAXTHRUST = 0) {
+	stage.
+}
+
+// Once fuel is out, stage.
+WHEN should_stage THEN {
+	stage.
+}
+
+// Parachute Deployment
+WHEN alt:radar < 5000 THEN {
+	stage.
+	lock steering to up.	
+}
+
+WHEN alt:radar < 2000 THEN {
+	gear on.
+}
+
+wait until alt:radar < 10.
