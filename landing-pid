@@ -1,0 +1,77 @@
+// An attempt at a PID style controller for a landing
+// script in Kerbal OS.
+
+// Specifically this will investigate the three elements
+// of PID controllers and determine which are effective
+// for the problem of landing.
+
+// The PID controller will be responsible for adjusting
+// the landers throttle control. The error signal will be
+// the difference between the time to impact versus the 
+// estimated burn duration given current engine output.
+
+// Time To Impact - how long until we hit the floor
+lock time_to_impact to (alt:radar / (ship:verticalspeed * -1)).
+
+// Landing Speed - Total velocity towards the ground
+lock landing_speed to SQRT((ship:verticalspeed*ship:verticalspeed) + (ship:groundspeed*ship:groundspeed)).
+
+// dver - The change in speed as a result of engine firing
+// in the format ms/s. That is the change in veolcity
+// per second.
+set dver to -1.
+
+// Burn Time - how long we need to fire the engines for
+// to bring our Landing Speed to zero
+lock burn_time to MAX((landing_speed / dver), 0).
+
+// Use Surface Retrograde vector to remove all direction 
+// control from the problem, simplifying it greatly.
+lock steering to srfretrograde.
+//wait 10.
+lock throttle to 1.0.
+
+// PID: Error signal
+// The difference between Time to Impact and Burn Time.
+//
+// Positive means we will hit the floor before we finish
+// the burn.
+lock e to time_to_impact - burn_time.
+
+set timer to -1.
+set current_vel to -1.
+until alt:radar < 100 {
+	
+	// Logic to update dver every 0.1 seconds.
+	if (timer = -1) {
+		set timer to MISSIONTIME.
+		set current_vel to landing_speed.
+	} else if (MISSIONTIME + 0.1 >= timer) {
+		set dver to (current_vel - landing_speed) * 10.
+		set timer to -1.
+	}
+
+	set t to 0.5 + (-0.005 * e).
+	print "bt:" + burn_time + " tti:" + time_to_impact.
+	print "dver:" + dver + " e:" + e + " t:" + t.
+	lock throttle to t.
+}
+
+// PID: Error Signal
+// The difference between the current altitude and the vertical velocity.
+lock e to alt:radar - (landing_speed/10).
+
+until alt:radar < 10 {
+	
+	// Logic to update dver every 0.1 seconds.
+	if (timer = -1) {
+		set timer to MISSIONTIME.
+		set current_vel to landing_speed.
+	} else if (MISSIONTIME + 0.1 >= timer) {
+		set dver to (current_vel - landing_speed) * 10.
+		set timer to -1.
+	}
+
+	set t to 0.0 + (-0.01 * e).
+	lock throttle to t.
+}
